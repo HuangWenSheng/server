@@ -7,21 +7,27 @@
 			<div id="headerPassword">{{ t('settings',  'Password') }}</div>
 			<div id="headerAddress">{{ t('settings',  'Email') }}</div>
 			<div id="headerGroups">{{ t('settings',  'Groups') }}</div>
-			<div id="headerSubAdmins" v-if="subAdminsGroups.length>0">{{ t('settings', 'Group admin for') }}</div>
-			<div id="recoveryPassword" v-if="settings.recoveryAdminEnabled">{{ t('settings', 'Recovery password') }}</div>
+			<div id="headerSubAdmins" 
+				 v-if="subAdminsGroups.length>0">{{ t('settings', 'Group admin for') }}</div>
+			<div id="recoveryPassword" 
+				 v-if="settings.recoveryAdminEnabled">{{ t('settings', 'Recovery password') }}</div>
 			<div id="headerQuota">{{ t('settings', 'Quota') }}</div>
-			<div class="headerStorageLocation storageLocation">{{ t('settings', 'Storage location') }}</div>
-			<div class="headerUserBackend userBackend">{{ t('settings', 'User backend') }}</div>
-			<div class="headerLastLogin lastLogin">{{ t('settings', 'Last login') }}</div>
+			<div class="headerStorageLocation storageLocation" 
+				 v-if="showConfig.storageLocation">{{ t('settings', 'Storage location') }}</div>
+			<div class="headerUserBackend userBackend" 
+				 v-if="showConfig.userBackend">{{ t('settings', 'User backend') }}</div>
+			<div class="headerLastLogin lastLogin" 
+				 v-if="showConfig.lastLogin">{{ t('settings', 'Last login') }}</div>
 			<div class="userActions"></div>
 		</div>
 
-		<form class="row" id="new-user" v-on:submit.prevent="createUser">
-			<div class="icon-add"></div>
+		<form class="row" id="new-user" v-on:submit.prevent="createUser" :disabled="loading">
+			<div :class="loading?'icon-loading-small':'icon-add'"></div>
 			<div class="name">
-				<input id="newusername" type="text" required v-model="newUser.name"
+				<input id="newusername" type="text" required v-model="newUser.id"
 					   :placeholder="t('settings', 'User name')" name="username"
-					   autocomplete="off" autocapitalize="none" autocorrect="off">
+					   autocomplete="off" autocapitalize="none" autocorrect="off"
+					   pattern="[a-zA-Z0-9 _\.@\-']+">
 			</div>
 			<div class="displayName">
 				<input id="newdisplayname" type="text" v-model="newUser.displayName"
@@ -33,7 +39,7 @@
 					   :required="newUser.mailAddress===''"
 					   :placeholder="t('settings', 'Password')" name="password"
 					   autocomplete="new-password" autocapitalize="none" autocorrect="off"
-					   inputmode="numeric" :minlength="minPasswordLength">
+					   :minlength="minPasswordLength">
 			</div>
 			<div class="mailAddress">
 				<input id="newemail" type="email" v-model="newUser.mailAddress"
@@ -66,9 +72,9 @@
 						 	 @tag="validateQuota" >
 				</multiselect>
 			</div>
-			<div class="storageLocation"></div>
-			<div class="userBackend"></div>
-			<div class="lastLogin"></div>
+			<div class="storageLocation" v-if="showConfig.storageLocation"></div>
+			<div class="userBackend" v-if="showConfig.userBackend"></div>
+			<div class="lastLogin" v-if="showConfig.lastLogin"></div>
 			<div class="userActions">
 				<input type="submit" id="newsubmit" class="button primary icon-checkmark-white has-tooltip"
 					   value="" :title="t('settings', 'Add a new user')">
@@ -77,21 +83,27 @@
 			</div>
 		</form>
 
-		<user-row v-for="(user, key) in users" :user="user" :key="key" :settings="settings"
-				  :groups="groups" :subAdminsGroups="subAdminsGroups" :quotaOptions="quotaOptions"/>
+		<user-row v-for="(user, key) in users" :user="user" :key="key" :settings="settings" :showConfig="showConfig"
+				  :groups="groups" :subAdminsGroups="subAdminsGroups" :quotaOptions="quotaOptions" />
+		<infinite-loading @infinite="infiniteHandler">
+			<span slot="spinner"><div class="users-icon-loading"></div></span>
+			<span slot="no-more"><div class="users-list-end">— {{t('settings', 'no more results')}} —</div></span>
+		</infinite-loading>
 	</div>
 </template>
 
 <script>
 import userRow from './userList/userRow';
 import Multiselect from 'vue-multiselect';
+import InfiniteLoading from 'vue-infinite-loading';
 
 export default {
 	name: 'userList',
-	props: ['users'],
+	props: ['users', 'showConfig'],
 	components: {
 		userRow,
-		Multiselect
+		Multiselect,
+		InfiniteLoading
 	},
 	data() {
 		let unlimitedQuota = {id:'none', label:t('settings', 'Unlimited')},
@@ -99,14 +111,15 @@ export default {
 		return {
 			unlimitedQuota: unlimitedQuota,
 			defaultQuota: defaultQuota,
+			loading: false,
 			newUser: {
-				name:'',
+				id:'',
 				displayName:'',
 				password:'',
 				mailAddress:'',
 				groups: [],
 				subAdminsGroups: [],
-				quota: unlimitedQuota
+				quota: defaultQuota
 			}
 		};
 	},
@@ -132,7 +145,13 @@ export default {
 		},
 		minPasswordLength() {
 			return this.$store.getters.getPasswordPolicyMinLength;
-		}
+		},
+		usersOffset() {
+			return this.$store.getters.getUsersOffset;
+		},
+		usersLimit() {
+			return this.$store.getters.getUsersLimit;
+		},
 	},
 	methods: {
 
@@ -154,12 +173,24 @@ export default {
 			return this.newUser.quota = this.quotaOptions[0];
 		},
 
+		infiniteHandler($state) {
+			this.$store.dispatch('getUsers', {offset:this.usersOffset, limit:this.usersLimit})
+				.then((response) => {response?$state.loaded():$state.complete()});
+		},
+
 		resetForm () {
 			// revert form to original state
-            Object.assign(this.newUser, this.$options.data.call(this).newUser);
+			Object.assign(this.newUser, this.$options.data.call(this).newUser);
+			this.loading = false;
         },
 		createUser() {
-			console.log(this.newUser)
+			this.loading = true;
+			this.$store.dispatch('addUser', {
+				userid: this.newUser.id,
+				password: this.newUser.password,
+				email: this.newUser.mailAddress,
+				groups: this.newUser.groups.map(group => group.id)
+			}).then(() =>this.resetForm());
 		}
 	}
 }

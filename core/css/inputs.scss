@@ -709,6 +709,9 @@ input {
             opacity: 1 !important;
         }
     }
+    &.multiselect--disabled {
+        background-color: nc-darken($color-main-background, 8%);
+    }
     .multiselect__tags {
         display: flex;
         flex-wrap: nowrap;

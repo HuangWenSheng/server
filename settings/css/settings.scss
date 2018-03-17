@@ -1181,7 +1181,8 @@ doesnotexist:-o-prefocus, .strengthify-wrapper {
 					border-color: nc-darken($color-main-background, 14%) !important;
 				}
 			}
-			> div {
+			> div,
+			> form {
 				grid-row: 1;
 				display: inline-flex;
 				align-items: center;
@@ -1193,7 +1194,7 @@ doesnotexist:-o-prefocus, .strengthify-wrapper {
 				}
 				> input:focus, >input:active {
 					+ .icon-confirm {
-						display: block;
+						display: block !important;
 					}
 				}
 				> input:not([type='submit']) {
@@ -1212,11 +1213,13 @@ doesnotexist:-o-prefocus, .strengthify-wrapper {
 					}
 				}
 				.icon-confirm {
-					display: none;
 					width: 32px;
 					height: 32px;
 					flex: 0 0 32px;
 					cursor: pointer;
+					&:not(:active) {
+						display: none;
+					}
 				}
 				&.avatar {
 					height: 32px;
@@ -1258,6 +1261,15 @@ doesnotexist:-o-prefocus, .strengthify-wrapper {
 					}
 				}
 			}
+		}
+		.infinite-loading-container {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.users-list-end {
+			opacity: .5;
+			user-select: none;
 		}
 	}
 }

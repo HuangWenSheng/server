@@ -1,7 +1,25 @@
 <template>
 	<div id="app">
-		<app-navigation :menu="menu" />
-		<user-list :users="users" />
+		<app-navigation :menu="menu">
+			<template slot="settings-content">
+				<div>
+					<input type="checkbox" id="showLastLogin" class="checkbox"
+						   :checked="showLastLogin" v-model="showLastLogin">
+					<label for="showLastLogin">{{t('settings', 'Show last login')}}</label>
+				</div>
+				<div>
+					<input type="checkbox" id="showUserBackend" class="checkbox"
+						   :checked="showUserBackend" v-model="showUserBackend">
+					<label for="showUserBackend">{{t('settings', 'Show user backend')}}</label>
+				</div>
+				<div>
+					<input type="checkbox" id="showStoragePath" class="checkbox"
+						   :checked="showStoragePath" v-model="showStoragePath">
+					<label for="showStoragePath">{{t('settings', 'Show storage path')}}</label>
+				</div>
+			</template>
+		</app-navigation>
+		<user-list :users="users" :showConfig="showConfig" />
 	</div>
 </template>
 
@@ -9,6 +27,8 @@
 import appNavigation from '../components/appNavigation';
 import userList from '../components/userList';
 import Vue from 'vue';
+import VueLocalStorage from 'vue-localstorage'
+Vue.use(VueLocalStorage)
 
 export default {
 	name: 'Users',
@@ -18,8 +38,28 @@ export default {
 	},
 	beforeMount() {
 		this.$store.commit('initGroups', this.$store.getters.getServerData.groups);
-		this.$store.dispatch('getUsers');
 		this.$store.dispatch('getPasswordPolicyMinLength');
+	},
+	data() {
+		return {
+			showConfig: {
+				showLastLogin: false,
+				showUserBackend: false,
+				showStoragePath: false
+			}
+		}
+	},
+	methods: {
+		getLocalstorage(key) {
+			// force initialization
+			this.showConfig[key] = this.$localStorage.get(key) === 'true';
+			return this.showConfig[key];
+		},
+		setLocalStorage(key, status) {
+			this.showConfig[key] = status;
+			this.$localStorage.set(key, status);
+			return status;
+		}
 	},
 	computed: {
 		users() {
@@ -27,6 +67,30 @@ export default {
 		},
 		loading() {
 			return Object.keys(this.users).length === 0;
+		},
+		usersOffset() {
+			return this.$store.getters.getUsersOffset;
+		},
+		usersLimit() {
+			return this.$store.getters.getUsersLimit;
+		},
+		showLastLogin: {
+			get: function() {return this.getLocalstorage('showLastLogin')},
+			set: function(status) {
+				this.setLocalStorage('showLastLogin', status);
+			}
+		},
+		showUserBackend: {
+			get: function() {return this.getLocalstorage('showUserBackend')},
+			set: function(status) {
+				this.setLocalStorage('showUserBackend', status);
+			}
+		},
+		showStoragePath: {
+			get: function() {return this.getLocalstorage('showStoragePath')},
+			set: function(status) {
+				this.setLocalStorage('showStoragePath', status);
+			}
 		},
 		menu() {
 			// Data provided php side
@@ -67,6 +131,7 @@ export default {
 			return {
 				id: 'usergrouplist',
 				new: {
+					id:'new-user-button',
 					text: t('settings','New user'),
 					icon: 'icon-add'
 				},
